@@ -9,9 +9,19 @@ extern "C" {
 
 
 
+typedef struct __BLE_GUID{
+	uint64_t a;
+	uint64_t b;
+	char s[37];
+} ble_guid_t;
+
+
+
 typedef struct __BLE_DEVICE{
 	uint64_t addr;
 	char addr_s[18];
+	uint32_t s_uuid_l;
+	ble_guid_t* s_uuid;
 } ble_device_t;
 
 
@@ -31,6 +41,10 @@ void ble_lib_init(void);
 
 
 ble_device_list_t* ble_lib_enum_devices(uint32_t tm);
+
+
+
+void ble_lib_print_guid(ble_guid_t g);
 
 
 
