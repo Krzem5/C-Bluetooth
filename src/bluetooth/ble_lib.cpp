@@ -1,6 +1,7 @@
 #include <ble_lib.h>
 #include <windows.h>
 #include <Windows.Foundation.h>
+#include <Windows.Devices.Bluetooth.h>
 #include <Windows.Devices.Bluetooth.Advertisement.h>
 #include <wrl/wrappers/corewrappers.h>
 #include <wrl.h>
@@ -8,6 +9,15 @@
 #include <inspectable.h>
 #include <cstdio>
 #include <cstdlib>
+#include <ppltasks.h>
+#include <pplawait.h>
+
+
+
+typedef struct ___CPP_BLE_CONNECTED_DEVICE{
+	ble_device_t* dv;
+	Windows::Devices::Bluetooth::BluetoothLEDevice^ _dt;
+} _cpp_ble_connected_device_t;
 
 
 
@@ -29,54 +39,74 @@ void _init_lib_cpp(void){
 
 
 
-ble_device_list_t* _enum_dev_cpp(uint32_t tm){
+void* _enum_dev_cpp(uint32_t tm,ble_device_found_t cb){
 	Microsoft::WRL::Wrappers::RoInitializeWrapper initialize(RO_INIT_MULTITHREADED);
 	Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ ble_w=ref new Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher();
-	ble_device_list_t* _dl=(ble_device_list_t*)malloc(sizeof(ble_device_list_t));
-	ble_device_list_t** dl=&_dl;
-	_dl->l=0;
+	uint64_t* _al=(uint64_t*)(void*)0;
+	uint64_t** al=&_al;
+	uint64_t _all=0;
+	uint64_t* all=&_all;
+	void* _r=(void*)0;
+	void** r=&_r;
 	ble_w->ScanningMode=Windows::Devices::Bluetooth::Advertisement::BluetoothLEScanningMode::Active;
 	ble_w->Received+=ref new Windows::Foundation::TypedEventHandler<Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^,Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs^>([=](Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ w,Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs^ ea){
-		for (uint64_t i=0;i<(*dl)->l;i++){
-			if ((*dl)->dt[i].addr==ea->BluetoothAddress){
+		if (!ea->BluetoothAddress){
+			return;
+		}
+		for (uint64_t i=0;i<*all;i++){
+			if (*((*al)+i)==ea->BluetoothAddress){
 				return;
 			}
 		}
-		(*dl)->l++;
-		*dl=(ble_device_list_t*)realloc(*dl,sizeof(ble_device_list_t)+(*dl)->l*sizeof(ble_device_t));
-		(*dl)->dt[(*dl)->l-1].addr=ea->BluetoothAddress;
-		(*dl)->dt[(*dl)->l-1].addr_s[0]=_hex((uint8_t)(ea->BluetoothAddress>>44));
-		(*dl)->dt[(*dl)->l-1].addr_s[1]=_hex((uint8_t)((ea->BluetoothAddress>>40)&0xf));
-		(*dl)->dt[(*dl)->l-1].addr_s[2]=':';
-		(*dl)->dt[(*dl)->l-1].addr_s[3]=_hex((uint8_t)((ea->BluetoothAddress>>36)&0xf));
-		(*dl)->dt[(*dl)->l-1].addr_s[4]=_hex((uint8_t)((ea->BluetoothAddress>>32)&0xf));
-		(*dl)->dt[(*dl)->l-1].addr_s[5]=':';
-		(*dl)->dt[(*dl)->l-1].addr_s[6]=_hex((uint8_t)((ea->BluetoothAddress>>28)&0xf));
-		(*dl)->dt[(*dl)->l-1].addr_s[7]=_hex((uint8_t)((ea->BluetoothAddress>>24)&0xf));
-		(*dl)->dt[(*dl)->l-1].addr_s[8]=':';
-		(*dl)->dt[(*dl)->l-1].addr_s[9]=_hex((uint8_t)((ea->BluetoothAddress>>20)&0xf));
-		(*dl)->dt[(*dl)->l-1].addr_s[10]=_hex((uint8_t)((ea->BluetoothAddress>>16)&0xf));
-		(*dl)->dt[(*dl)->l-1].addr_s[11]=':';
-		(*dl)->dt[(*dl)->l-1].addr_s[12]=_hex((uint8_t)((ea->BluetoothAddress>>12)&0xf));
-		(*dl)->dt[(*dl)->l-1].addr_s[13]=_hex((uint8_t)((ea->BluetoothAddress>>8)&0xf));
-		(*dl)->dt[(*dl)->l-1].addr_s[14]=':';
-		(*dl)->dt[(*dl)->l-1].addr_s[15]=_hex((uint8_t)((ea->BluetoothAddress>>4)&0xf));
-		(*dl)->dt[(*dl)->l-1].addr_s[16]=_hex((uint8_t)(ea->BluetoothAddress&0xf));
-		(*dl)->dt[(*dl)->l-1].addr_s[17]=0;
-		(*dl)->dt[(*dl)->l-1].s_uuid_l=ea->Advertisement->ServiceUuids->Size;
-		(*dl)->dt[(*dl)->l-1].s_uuid=(ble_guid_t*)malloc(ea->Advertisement->ServiceUuids->Size*sizeof(ble_guid_t));
-		ble_guid_t* glp=(*dl)->dt[(*dl)->l-1].s_uuid;
+		(*all)++;
+		*al=(uint64_t*)realloc(*al,(*all)*sizeof(uint64_t));
+		*((*al)+(*all)-1)=ea->BluetoothAddress;
+		uint64_t tl=0;
 		for (uint32_t i=0;i<ea->Advertisement->ManufacturerData->Size;i++){
-			uint32_t dt_l=ea->Advertisement->ManufacturerData->GetAt(i)->Data->Length;
+			tl+=ea->Advertisement->ManufacturerData->GetAt(i)->Data->Length;
+		}
+		ble_device_t dv={
+			ea->BluetoothAddress,
+			{
+				_hex((uint8_t)(ea->BluetoothAddress>>44)),
+				_hex((uint8_t)((ea->BluetoothAddress>>40)&0xf)),
+				':',
+				_hex((uint8_t)((ea->BluetoothAddress>>36)&0xf)),
+				_hex((uint8_t)((ea->BluetoothAddress>>32)&0xf)),
+				':',
+				_hex((uint8_t)((ea->BluetoothAddress>>28)&0xf)),
+				_hex((uint8_t)((ea->BluetoothAddress>>24)&0xf)),
+				':',
+				_hex((uint8_t)((ea->BluetoothAddress>>20)&0xf)),
+				_hex((uint8_t)((ea->BluetoothAddress>>16)&0xf)),
+				':',
+				_hex((uint8_t)((ea->BluetoothAddress>>12)&0xf)),
+				_hex((uint8_t)((ea->BluetoothAddress>>8)&0xf)),
+				':',
+				_hex((uint8_t)((ea->BluetoothAddress>>4)&0xf)),
+				_hex((uint8_t)(ea->BluetoothAddress&0xf)),
+				0
+			},
+			{
+				ea->Advertisement->ManufacturerData->Size,
+				(ea->Advertisement->ManufacturerData->Size?(ble_device_manufacturer_data_t*)malloc(ea->Advertisement->ManufacturerData->Size*sizeof(ble_device_manufacturer_data_t)+tl*sizeof(uint8_t)):(ble_device_manufacturer_data_t*)(void*)0)
+			},
+			{
+				ea->Advertisement->ServiceUuids->Size,
+				(ea->Advertisement->ServiceUuids->Size?(ble_guid_t*)malloc(ea->Advertisement->ServiceUuids->Size*sizeof(ble_guid_t)):(ble_guid_t*)(void*)0)
+			}
+		};
+		ble_device_manufacturer_data_t* mdp=dv.manufacturer_data.data;
+		uint8_t* mdpp=(uint8_t*)(void*)((uint64_t)(void*)dv.manufacturer_data.data+ea->Advertisement->ManufacturerData->Size*sizeof(ble_device_manufacturer_data_t));
+		ble_guid_t* glp=dv.services.uuids;
+		for (uint32_t i=0;i<ea->Advertisement->ManufacturerData->Size;i++){
+			mdp->l=ea->Advertisement->ManufacturerData->GetAt(i)->Data->Length;
 			Microsoft::WRL::ComPtr<Windows::Storage::Streams::IBufferByteAccess> dt;
 			reinterpret_cast<IInspectable*>(ea->Advertisement->ManufacturerData->GetAt(i)->Data)->QueryInterface(IID_PPV_ARGS(&dt));
-			uint8_t* s_dt=nullptr;
-			dt->Buffer((byte**)&s_dt);
-			printf("%hu: ",ea->Advertisement->ManufacturerData->GetAt(i)->CompanyId);
-			for (uint32_t j=0;j<dt_l;j++){
-				printf("%.2hhx",*(s_dt+j));
-			}
-			printf("\n");
+			mdp->dt=mdpp;
+			dt->Buffer((byte**)&(mdp->dt));
+			mdp++;
+			mdpp+=mdp->l;
 		}
 		for (uint32_t i=0;i<ea->Advertisement->ServiceUuids->Size;i++){
 			Platform::String^ s=ea->Advertisement->ServiceUuids->GetAt(i).ToString();
@@ -104,11 +134,46 @@ ble_device_list_t* _enum_dev_cpp(uint32_t tm){
 				glp++;
 			}
 		}
+		if ((*r=cb(&dv))){
+			ble_w->Stop();
+		}
 	});
 	ble_w->Start();
-	Sleep(tm);
+	while (tm){
+		tm-=100;
+		Sleep(100);
+		if (ble_w->Status!=Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcherStatus::Started){
+			return *r;
+		}
+	}
 	ble_w->Stop();
-	return _dl;
+	return *r;
+}
+
+
+
+concurrency::task<void> _connect_dev_cpp(ble_device_t* dv,ble_connected_device_t** o){
+	Windows::Devices::Bluetooth::BluetoothLEDevice^ d=co_await Windows::Devices::Bluetooth::BluetoothLEDevice::FromBluetoothAddressAsync(dv->addr);
+	_cpp_ble_connected_device_t* cdv=(_cpp_ble_connected_device_t*)malloc(sizeof(_cpp_ble_connected_device_t));
+	cdv->dv=dv;
+	cdv->_dt=d;
+	*o=(ble_connected_device_t*)cdv;
+}
+
+
+
+ble_connected_device_t* _connect_dev_wr_cpp(ble_device_t* dv){
+	ble_connected_device_t* o;
+	_connect_dev_cpp(dv,&o);
+	return o;
+}
+
+
+
+void _diconnect_dev_cpp(ble_connected_device_t* cdv){
+	_cpp_ble_connected_device_t* cdv_cpp=(_cpp_ble_connected_device_t*)cdv;
+	cdv_cpp->_dt=nullptr;
+	free(cdv_cpp);
 }
 
 
@@ -119,18 +184,29 @@ extern "C" void ble_lib_init(void){
 
 
 
-extern "C" ble_device_list_t* ble_lib_enum_devices(uint32_t tm){
-	return _enum_dev_cpp(tm);
+extern "C" void* ble_lib_enum_devices(uint32_t tm,ble_device_found_t cb){
+	return _enum_dev_cpp(tm,cb);
 }
 
 
 
-extern "C" void ble_lib_free_device_list(ble_device_list_t* l){
-	while (l->l){
-		l->l--;
-		if (l->dt[l->l].s_uuid_l){
-			free(l->dt[l->l].s_uuid);
-		}
+extern "C" ble_connected_device_t* ble_lib_connect_device(ble_device_t* dv){
+	return _connect_dev_wr_cpp(dv);
+}
+
+
+
+extern "C" void ble_lib_disconnect_device(ble_connected_device_t* cdv){
+	_diconnect_dev_cpp(cdv);
+}
+
+
+
+extern "C" void ble_lib_free_device(ble_device_t* dv){
+	if (dv->manufacturer_data.l){
+		free(dv->manufacturer_data.data);
 	}
-	free(l);
+	if (dv->services.l){
+		free(dv->services.uuids);
+	}
 }
