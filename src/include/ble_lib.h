@@ -9,6 +9,19 @@ extern "C" {
 
 
 
+#define BLE_CHRACTERISTIC_FLAG_BROADCAST 1
+#define BLE_CHRACTERISTIC_FLAG_READ 2
+#define BLE_CHRACTERISTIC_FLAG_WRITEWITHOUTRESPONSE 4
+#define BLE_CHRACTERISTIC_FLAG_WRITE 8
+#define BLE_CHRACTERISTIC_FLAG_NOTIFY 16
+#define BLE_CHRACTERISTIC_FLAG_INDICATE 32
+#define BLE_CHRACTERISTIC_FLAG_AUTHENTICATEDSIGNEDWRITES 64
+#define BLE_CHRACTERISTIC_FLAG_EXTENDEDPROPERTIES 128
+#define BLE_CHRACTERISTIC_FLAG_RELIABLEWRITES 256
+#define BLE_CHRACTERISTIC_FLAG_WRITABLEAUXILIARIES 512
+
+
+
 typedef struct __BLE_DEVICE_MANUFACTURER_DATA{
 	uint32_t l;
 	uint8_t* dt;
@@ -47,13 +60,54 @@ typedef struct __BLE_DEVICE{
 
 
 
+typedef struct __BLE_DEVICE_CHARACTERISTICS{
+	ble_guid_t uuid;
+	uint16_t f;
+	uint64_t _dt;
+} ble_connected_device_characteristics_t;
+
+
+
+typedef struct __BLE_DEVICE_CHARACTERISTICS_LIST{
+	uint32_t l;
+	ble_connected_device_characteristics_t* data;
+} ble_connected_device_characteristics_list_t;
+
+
+
+typedef struct __BLE_CONNECTED_DEVICE_SERVICE{
+	ble_guid_t uuid;
+	ble_connected_device_characteristics_list_t characteristics;
+	uint64_t _dt;
+} ble_connected_device_service_t;
+
+
+
+typedef struct __BLE_CONNECTED_DEVICE_SERVICE_LIST{
+	uint32_t l;
+	ble_connected_device_service_t* data;
+} ble_connected_device_service_list_t;
+
+
+
 typedef struct __BLE_CONNECTED_DEVICE{
 	ble_device_t* dv;
+	ble_connected_device_service_list_t services;
+	uint64_t _dt;
 } ble_connected_device_t;
 
 
 
+typedef struct __BLE_CHARACTERISTIC_NOTIFICATION_DATA{
+	uint64_t tm;
+	uint32_t l;
+	uint8_t* bf;
+} ble_characteristic_notification_data_t;
+
+
+
 typedef void* (*ble_device_found_t)(ble_device_t* dv);
+typedef void (*ble_characteristic_notification_t)(ble_characteristic_notification_data_t dt);
 
 
 
@@ -66,6 +120,14 @@ void* ble_lib_enum_devices(uint32_t tm,ble_device_found_t cb);
 
 
 ble_connected_device_t* ble_lib_connect_device(ble_device_t* dv);
+
+
+
+void ble_lib_load_characteristics(ble_connected_device_service_t* s);
+
+
+
+void ble_lib_register_characteristic_notification(ble_connected_device_characteristics_t* c,ble_characteristic_notification_t cb);
 
 
 
