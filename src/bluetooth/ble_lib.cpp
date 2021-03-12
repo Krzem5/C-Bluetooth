@@ -87,6 +87,7 @@ void* _enum_dev_cpp(uint32_t tm,ble_device_found_t cb){
 		ble_guid_t* glp=dv->services.uuids;
 		for (uint32_t i=0;i<ea->Advertisement->ManufacturerData->Size;i++){
 			mdp->l=ea->Advertisement->ManufacturerData->GetAt(i)->Data->Length;
+			mdp->id=ea->Advertisement->ManufacturerData->GetAt(i)->CompanyId;
 			Microsoft::WRL::ComPtr<Windows::Storage::Streams::IBufferByteAccess> dt;
 			reinterpret_cast<IInspectable*>(ea->Advertisement->ManufacturerData->GetAt(i)->Data)->QueryInterface(IID_PPV_ARGS(&dt));
 			dt->Buffer((byte**)&(mdp->dt));

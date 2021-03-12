@@ -24,6 +24,7 @@ extern "C" {
 
 typedef struct __BLE_DEVICE_MANUFACTURER_DATA{
 	uint32_t l;
+	uint16_t id;
 	uint8_t* dt;
 } ble_device_manufacturer_data_t;
 

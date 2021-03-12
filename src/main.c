@@ -6,7 +6,7 @@
 void* found_cb(ble_device_t* dv){
 	printf("BLE Device:\n  Address: %s\n  Manufacturer Data (%u)%c\n",dv->addr_s,dv->manufacturer_data.l,(dv->manufacturer_data.l?':':' '));
 	for (uint32_t j=0;j<dv->manufacturer_data.l;j++){
-		printf("    (%u) ",(dv->manufacturer_data.data+j)->l);
+		printf("    ManufacturerID: %u, Data: [%u] ",(dv->manufacturer_data.data+j)->id,(dv->manufacturer_data.data+j)->l);
 		for (uint32_t k=0;k<(dv->manufacturer_data.data+j)->l;k++){
 			printf("%.2hhx",*((dv->manufacturer_data.data+j)->dt+k));
 		}
@@ -16,7 +16,7 @@ void* found_cb(ble_device_t* dv){
 	for (uint32_t j=0;j<dv->services.l;j++){
 		printf("    %s\n",(dv->services.uuids+j)->s);
 	}
-	if (dv->addr==0x1653b3c599){
+	if (dv->addr==0x1653b3c599||dv->addr==0x90842b5ace22){
 		return (void*)dv;
 	}
 	ble_lib_free_device(dv);
