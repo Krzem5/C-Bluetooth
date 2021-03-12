@@ -49,7 +49,7 @@ int main(int argc,const char** argv){
 		printf("Service#%lu: %s:\n",i,(cdv->services.data+i)->uuid.s);
 		ble_lib_load_characteristics(cdv->services.data+i);
 		for (uint32_t j=0;j<(cdv->services.data+i)->characteristics.l;j++){
-			printf("  Characteristic#%lu: %s (Flags: %x)\n",j,((cdv->services.data+i)->characteristics.data+j)->uuid.s,((cdv->services.data+i)->characteristics.data+j)->f);
+			printf("  Characteristic#%lu: %s (Flags: %#.3x)\n",j,((cdv->services.data+i)->characteristics.data+j)->uuid.s,((cdv->services.data+i)->characteristics.data+j)->f);
 			if (((cdv->services.data+i)->characteristics.data+j)->f&BLE_CHRACTERISTIC_FLAG_NOTIFY){
 				ble_lib_register_characteristic_notification((cdv->services.data+i)->characteristics.data+j,read_cb);
 			}

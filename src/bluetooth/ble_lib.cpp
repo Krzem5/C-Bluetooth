@@ -59,10 +59,6 @@ void* _enum_dev_cpp(uint32_t tm,ble_device_found_t cb){
 		(*all)++;
 		*al=(uint64_t*)std::realloc(*al,(*all)*sizeof(uint64_t));
 		*((*al)+(*all)-1)=ea->BluetoothAddress;
-		uint64_t tl=0;
-		for (uint32_t i=0;i<ea->Advertisement->ManufacturerData->Size;i++){
-			tl+=ea->Advertisement->ManufacturerData->GetAt(i)->Data->Length;
-		}
 		ble_device_t* dv=(ble_device_t*)std::malloc(sizeof(ble_device_t));
 		dv->addr=ea->BluetoothAddress;
 		dv->addr_s[0]=_hex((uint8_t)(ea->BluetoothAddress>>44));
@@ -84,22 +80,17 @@ void* _enum_dev_cpp(uint32_t tm,ble_device_found_t cb){
 		dv->addr_s[16]=_hex((uint8_t)(ea->BluetoothAddress&0xf));
 		dv->addr_s[17]=0;
 		dv->manufacturer_data.l=ea->Advertisement->ManufacturerData->Size;
-		dv->manufacturer_data.data=(ea->Advertisement->ManufacturerData->Size?(ble_device_manufacturer_data_t*)std::malloc(ea->Advertisement->ManufacturerData->Size*sizeof(ble_device_manufacturer_data_t)+tl*sizeof(uint8_t)):(ble_device_manufacturer_data_t*)(void*)0);
+		dv->manufacturer_data.data=(ea->Advertisement->ManufacturerData->Size?(ble_device_manufacturer_data_t*)std::malloc(ea->Advertisement->ManufacturerData->Size*sizeof(ble_device_manufacturer_data_t)):(ble_device_manufacturer_data_t*)(void*)0);
 		dv->services.l=ea->Advertisement->ServiceUuids->Size;
 		dv->services.uuids=(ea->Advertisement->ServiceUuids->Size?(ble_guid_t*)std::malloc(ea->Advertisement->ServiceUuids->Size*sizeof(ble_guid_t)):(ble_guid_t*)(void*)0);
 		ble_device_manufacturer_data_t* mdp=dv->manufacturer_data.data;
-		uint8_t* mdpp=(uint8_t*)(void*)((uint64_t)(void*)dv->manufacturer_data.data+ea->Advertisement->ManufacturerData->Size*sizeof(ble_device_manufacturer_data_t));
 		ble_guid_t* glp=dv->services.uuids;
 		for (uint32_t i=0;i<ea->Advertisement->ManufacturerData->Size;i++){
 			mdp->l=ea->Advertisement->ManufacturerData->GetAt(i)->Data->Length;
 			Microsoft::WRL::ComPtr<Windows::Storage::Streams::IBufferByteAccess> dt;
 			reinterpret_cast<IInspectable*>(ea->Advertisement->ManufacturerData->GetAt(i)->Data)->QueryInterface(IID_PPV_ARGS(&dt));
-			uint8_t* tmp_bf;
-			dt->Buffer((byte**)&tmp_bf);
-			memcpy(mdpp,tmp_bf,mdp->l);
-			mdp->dt=mdpp;
+			dt->Buffer((byte**)&(mdp->dt));
 			mdp++;
-			mdpp+=mdp->l;
 		}
 		for (uint32_t i=0;i<ea->Advertisement->ServiceUuids->Size;i++){
 			Platform::String^ s=ea->Advertisement->ServiceUuids->GetAt(i).ToString();
@@ -283,16 +274,12 @@ concurrency::task<void> _reg_cn_handle_cpp(ble_connected_device_characteristics_
 	_c_ref[c->_dt]->ValueChanged+=ref new Windows::Foundation::TypedEventHandler<Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic^,Windows::Devices::Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs^>([=](Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic^ gc,Windows::Devices::Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs^ ea){
 		ble_characteristic_notification_data_t dt={
 			(uint64_t)(ea->Timestamp.UniversalTime/10000000-11644473600LL),
-			ea->CharacteristicValue->Length,
-			(uint8_t*)std::malloc(ea->CharacteristicValue->Length*sizeof(uint8_t))
+			ea->CharacteristicValue->Length
 		};
 		Microsoft::WRL::ComPtr<Windows::Storage::Streams::IBufferByteAccess> bf_dt;
 		reinterpret_cast<IInspectable*>(ea->CharacteristicValue)->QueryInterface(IID_PPV_ARGS(&bf_dt));
-		uint8_t* tmp_bf;
-		bf_dt->Buffer((byte**)&tmp_bf);
-		memcpy(dt.bf,tmp_bf,dt.l);
+		bf_dt->Buffer((byte**)&(dt.bf));
 		cb(dt);
-		std::free(dt.bf);
 	});
 }
 
