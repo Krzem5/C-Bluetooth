@@ -37,7 +37,7 @@ void _init_lib_cpp(void){
 
 
 
-void* _enum_dev_cpp(uint32_t tm,ble_device_found_t cb){
+void* _enum_dev_cpp(uint32_t tm,ble_device_found_t cb,void* arg){
 	Microsoft::WRL::Wrappers::RoInitializeWrapper initialize(RO_INIT_MULTITHREADED);
 	Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ ble_w=ref new Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher();
 	uint64_t* _al=(uint64_t*)(void*)0;
@@ -46,13 +46,19 @@ void* _enum_dev_cpp(uint32_t tm,ble_device_found_t cb){
 	uint64_t* all=&_all;
 	void* _r=(void*)0;
 	void** r=&_r;
+	HANDLE mx=CreateMutex(NULL,FALSE,NULL);
 	ble_w->ScanningMode=Windows::Devices::Bluetooth::Advertisement::BluetoothLEScanningMode::Active;
 	ble_w->Received+=ref new Windows::Foundation::TypedEventHandler<Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^,Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs^>([=](Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ w,Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs^ ea){
 		if (!ea->BluetoothAddress){
 			return;
 		}
+		WaitForSingleObject(mx,INFINITE);
+		if (ble_w->Status!=Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcherStatus::Started){
+			return;
+		}
 		for (uint64_t i=0;i<*all;i++){
 			if (*((*al)+i)==ea->BluetoothAddress){
+				ReleaseMutex(mx);
 				return;
 			}
 		}
@@ -119,25 +125,25 @@ void* _enum_dev_cpp(uint32_t tm,ble_device_found_t cb){
 				glp++;
 			}
 		}
-		if ((*r=cb(dv))){
+		if ((*r=cb(dv,arg))){
 			ble_w->Stop();
 		}
+		ReleaseMutex(mx);
 	});
 	ble_w->Start();
 	while (tm){
 		tm-=100;
 		Sleep(100);
 		if (ble_w->Status!=Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcherStatus::Started){
-			if (_all){
-				std::free(_al);
-			}
-			return *r;
+			goto _end;
 		}
 	}
 	ble_w->Stop();
+_end:
 	if (_all){
 		std::free(_al);
 	}
+	CloseHandle(mx);
 	return *r;
 }
 
@@ -270,8 +276,7 @@ void _load_ch_wr_cpp(ble_connected_device_service_t* s){
 
 
 
-concurrency::task<void> _reg_cn_handle_cpp(ble_connected_device_characteristics_t* c,ble_characteristic_notification_t cb){
-	co_await _c_ref[c->_dt]->WriteClientCharacteristicConfigurationDescriptorAsync(Windows::Devices::Bluetooth::GenericAttributeProfile::GattClientCharacteristicConfigurationDescriptorValue::Notify);
+concurrency::task<void> _reg_cn_handle_cpp(ble_connected_device_characteristics_t* c,ble_characteristic_notification_t cb,void* arg){
 	_c_ref[c->_dt]->ValueChanged+=ref new Windows::Foundation::TypedEventHandler<Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic^,Windows::Devices::Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs^>([=](Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic^ gc,Windows::Devices::Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs^ ea){
 		ble_characteristic_notification_data_t dt={
 			(uint64_t)(ea->Timestamp.UniversalTime/10000000-11644473600LL),
@@ -280,14 +285,29 @@ concurrency::task<void> _reg_cn_handle_cpp(ble_connected_device_characteristics_
 		Microsoft::WRL::ComPtr<Windows::Storage::Streams::IBufferByteAccess> bf_dt;
 		reinterpret_cast<IInspectable*>(ea->CharacteristicValue)->QueryInterface(IID_PPV_ARGS(&bf_dt));
 		bf_dt->Buffer((byte**)&(dt.bf));
-		cb(dt);
+		cb(dt,arg);
 	});
+	co_await _c_ref[c->_dt]->WriteClientCharacteristicConfigurationDescriptorAsync(Windows::Devices::Bluetooth::GenericAttributeProfile::GattClientCharacteristicConfigurationDescriptorValue::Notify);
 }
 
 
 
-void _reg_cn_handle_wr_cpp(ble_connected_device_characteristics_t* c,ble_characteristic_notification_t cb){
-	_reg_cn_handle_cpp(c,cb).get();
+void _reg_cn_handle_wr_cpp(ble_connected_device_characteristics_t* c,ble_characteristic_notification_t cb,void* arg){
+	_reg_cn_handle_cpp(c,cb,arg).get();
+}
+
+
+
+concurrency::task<void> _wr_c_cpp(ble_connected_device_characteristics_t* c,uint8_t* dt,uint32_t dtl){
+	Windows::Storage::Streams::DataWriter^ wr=ref new Windows::Storage::Streams::DataWriter();
+	wr->WriteBytes(ref new Platform::Array<byte>((byte*)dt,dtl));
+	co_await _c_ref[c->_dt]->WriteValueAsync(wr->DetachBuffer(),Windows::Devices::Bluetooth::GenericAttributeProfile::GattWriteOption::WriteWithoutResponse);
+}
+
+
+
+void _wr_c_wr_cpp(ble_connected_device_characteristics_t* c,uint8_t* dt,uint32_t dtl){
+	_wr_c_cpp(c,dt,dtl).get();
 }
 
 
@@ -316,8 +336,8 @@ extern "C" void ble_lib_init(void){
 
 
 
-extern "C" void* ble_lib_enum_devices(uint32_t tm,ble_device_found_t cb){
-	return _enum_dev_cpp(tm,cb);
+extern "C" void* ble_lib_enum_devices(uint32_t tm,ble_device_found_t cb,void* arg){
+	return _enum_dev_cpp(tm,cb,arg);
 }
 
 
@@ -334,8 +354,14 @@ extern "C" void ble_lib_load_characteristics(ble_connected_device_service_t* s){
 
 
 
-extern "C" void ble_lib_register_characteristic_notification(ble_connected_device_characteristics_t* c,ble_characteristic_notification_t cb){
-	_reg_cn_handle_wr_cpp(c,cb);
+extern "C" void ble_lib_register_characteristic_notification(ble_connected_device_characteristics_t* c,ble_characteristic_notification_t cb,void* arg){
+	_reg_cn_handle_wr_cpp(c,cb,arg);
+}
+
+
+
+extern "C" void ble_lib_write_characteristic(ble_connected_device_characteristics_t* c,uint8_t* dt,uint32_t dtl){
+	_wr_c_wr_cpp(c,dt,dtl);
 }
 
 

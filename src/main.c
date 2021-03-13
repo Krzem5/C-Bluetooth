@@ -3,7 +3,7 @@
 
 
 
-void* found_cb(ble_device_t* dv){
+void* found_cb(ble_device_t* dv,void* arg){
 	printf("BLE Device:\n  Address: %s\n  Manufacturer Data (%u)%c\n",dv->addr_s,dv->manufacturer_data.l,(dv->manufacturer_data.l?':':' '));
 	for (uint32_t j=0;j<dv->manufacturer_data.l;j++){
 		printf("    ManufacturerID: %u, Data: [%u] ",(dv->manufacturer_data.data+j)->id,(dv->manufacturer_data.data+j)->l);
@@ -25,7 +25,7 @@ void* found_cb(ble_device_t* dv){
 
 
 
-void read_cb(ble_characteristic_notification_data_t dt){
+void read_cb(ble_characteristic_notification_data_t dt,void* arg){
 	printf("Data (%llu): [%u] ",dt.tm,dt.l);
 	for (uint32_t i=0;i<dt.l;i++){
 		printf("%.2hhx",*(dt.bf+i));
@@ -36,10 +36,8 @@ void read_cb(ble_characteristic_notification_data_t dt){
 
 
 int main(int argc,const char** argv){
-	(void)argc;
-	(void)argv;
 	ble_lib_init();
-	ble_device_t* dv=(ble_device_t*)ble_lib_enum_devices(5000,found_cb);
+	ble_device_t* dv=(ble_device_t*)ble_lib_enum_devices(5000,found_cb,NULL);
 	if (!dv){
 		printf("No Device Found!\n");
 		return 0;
@@ -51,7 +49,7 @@ int main(int argc,const char** argv){
 		for (uint32_t j=0;j<(cdv->services.data+i)->characteristics.l;j++){
 			printf("  Characteristic#%lu: %s (Flags: %#.3x)\n",j,((cdv->services.data+i)->characteristics.data+j)->uuid.s,((cdv->services.data+i)->characteristics.data+j)->f);
 			if (((cdv->services.data+i)->characteristics.data+j)->f&BLE_CHRACTERISTIC_FLAG_NOTIFY){
-				ble_lib_register_characteristic_notification((cdv->services.data+i)->characteristics.data+j,read_cb);
+				ble_lib_register_characteristic_notification((cdv->services.data+i)->characteristics.data+j,read_cb,NULL);
 			}
 		}
 	}

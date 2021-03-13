@@ -22,6 +22,11 @@ extern "C" {
 
 
 
+#define BLE_LIB_CREATE_UUID_A(a,b,c) ((((uint64_t)(a))<<32)|(((uint64_t)(b))<<16)|(c))
+#define BLE_LIB_CREATE_UUID_B(a,b) ((((uint64_t)(a))<<48)|(b))
+
+
+
 typedef struct __BLE_DEVICE_MANUFACTURER_DATA{
 	uint32_t l;
 	uint16_t id;
@@ -107,8 +112,8 @@ typedef struct __BLE_CHARACTERISTIC_NOTIFICATION_DATA{
 
 
 
-typedef void* (*ble_device_found_t)(ble_device_t* dv);
-typedef void (*ble_characteristic_notification_t)(ble_characteristic_notification_data_t dt);
+typedef void* (*ble_device_found_t)(ble_device_t* dv,void* arg);
+typedef void (*ble_characteristic_notification_t)(ble_characteristic_notification_data_t dt,void* arg);
 
 
 
@@ -116,7 +121,7 @@ void ble_lib_init(void);
 
 
 
-void* ble_lib_enum_devices(uint32_t tm,ble_device_found_t cb);
+void* ble_lib_enum_devices(uint32_t tm,ble_device_found_t cb,void* arg);
 
 
 
@@ -128,7 +133,11 @@ void ble_lib_load_characteristics(ble_connected_device_service_t* s);
 
 
 
-void ble_lib_register_characteristic_notification(ble_connected_device_characteristics_t* c,ble_characteristic_notification_t cb);
+void ble_lib_register_characteristic_notification(ble_connected_device_characteristics_t* c,ble_characteristic_notification_t cb,void* arg);
+
+
+
+void ble_lib_write_characteristic(ble_connected_device_characteristics_t* c,uint8_t* dt,uint32_t dtl);
 
 
 
